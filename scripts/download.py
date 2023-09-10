@@ -8,7 +8,7 @@ wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
 
-def download_from_hub(repo_id: Optional[str] = None, access_token: Optional[str] = os.getenv("HF_TOKEN")) -> None:
+def download_from_hub(repo_id: Optional[str] = None, out_dir: Optional[str] = None, access_token: Optional[str] = os.getenv("HF_TOKEN")) -> None:
     if repo_id is None:
         from lit_gpt.config import configs
 
@@ -16,7 +16,8 @@ def download_from_hub(repo_id: Optional[str] = None, access_token: Optional[str]
         print("Please specify --repo_id <repo_id>. Available values:")
         print("\n".join(options))
         return
-
+    if out_dir is None:
+        out_dir = "checkpoints"
     from huggingface_hub import snapshot_download
 
     if "meta-llama" in repo_id and not access_token:
@@ -28,7 +29,7 @@ def download_from_hub(repo_id: Optional[str] = None, access_token: Optional[str]
 
     snapshot_download(
         repo_id,
-        local_dir=f"checkpoints/{repo_id}",
+        local_dir=f"{out_dir}/{repo_id}",
         local_dir_use_symlinks=False,
         resume_download=True,
         allow_patterns=["*.bin*", "tokenizer*", "generation_config.json"],

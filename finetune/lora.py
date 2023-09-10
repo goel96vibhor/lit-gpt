@@ -34,7 +34,7 @@ eval_iters = 100
 log_interval = 1
 devices = 1
 # change this value to force a maximum sequence length
-override_max_seq_length = None
+override_max_seq_length = 2048 #None
 
 # Hyperparameters
 learning_rate = 3e-4
@@ -42,7 +42,7 @@ batch_size = 128
 micro_batch_size = 4
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
-max_iters = 50000  # train dataset size
+max_iters = 500 #50000  # train dataset size
 weight_decay = 0.01
 lora_r = 8
 lora_alpha = 16

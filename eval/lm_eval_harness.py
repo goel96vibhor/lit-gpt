@@ -1,7 +1,6 @@
 import json
 import sys
 import time
-import warnings
 from pathlib import Path
 from typing import List, Literal, Optional
 
@@ -72,7 +71,6 @@ class EvalHarnessBase(BaseLM):
         with lazy_load(checkpoint_path) as checkpoint:
             model.load_state_dict(checkpoint.get("model", checkpoint), strict=quantize is None)
         fabric.print(f"Time to load the model weights: {time.perf_counter() - t0:.02f} seconds.", file=sys.stderr)
-
         model.eval()
         self.model = fabric.setup_module(model)
         self.tokenizer = Tokenizer(checkpoint_dir)
@@ -112,7 +110,7 @@ class EvalHarnessBase(BaseLM):
         t = torch.tensor(tokens)
         return self.tokenizer.decode(t)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def _model_call(self, inps):
         """
         inps: a torch tensor of shape [batch, sequence]
@@ -124,19 +122,23 @@ class EvalHarnessBase(BaseLM):
 
     def _model_generate(self, context, max_length, eos_token_id):
         assert context.shape[0] == 1
+        with self.fabric.init_tensor():
+            # do not set `max_seq_length=max_returned_token` because memory is not a concern here
+            self.model.set_kv_cache(batch_size=1)
         out = generate(
-            model=self.model,
-            idx=context[0],
-            max_new_tokens=max_length,
-            max_seq_length=self.model.config.block_size,
-            temperature=self.temperature,
-            top_k=None,
-            eos_id=eos_token_id,
+            self.model, context[0], max_length, temperature=self.temperature, top_k=None, eos_id=eos_token_id
         )
+        self.model.clear_kv_cache()
+        # print("_model_generate output")
+        # print(out)
+        # print(out.shape)
+        out = out.unsqueeze(0)
+        # print(out.shape)
+        # op = self.tokenizer.decode(out)
+        # print(op)
+        return out
 
-        return self.tokenizer.decode(out)
-
-    @torch.no_grad()
+    @torch.inference_mode()
     def run_eval(
         self,
         eval_tasks=None,
@@ -243,10 +245,5 @@ if __name__ == "__main__":
     from jsonargparse import CLI
 
     torch.set_float32_matmul_precision("high")
-    warnings.filterwarnings(
-        # Triggered internally at ../aten/src/ATen/EmptyTensor.cpp:31
-        "ignore",
-        message="ComplexHalf support is experimental and many operators don't support it yet",
-    )
     result = CLI(run_eval_harness)
     print(result)

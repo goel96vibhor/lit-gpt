@@ -79,6 +79,7 @@ class GPT(nn.Module):
                 raise TypeError("You need to call `gpt.set_kv_cache()`")
             mask = self.mask_cache.index_select(2, input_pos)
         else:
+            self.set_kv_cache(batch_size=1, device="cuda:0", dtype=torch.bfloat16)
             cos = self.cos[:T]
             sin = self.sin[:T]
             mask = None

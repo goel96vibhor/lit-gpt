@@ -83,11 +83,23 @@ class EvalHarnessBase(BaseLM):
 
     def _model_generate(self, context, max_length, eos_token_id):
         assert context.shape[0] == 1
+        with self.fabric.init_tensor():
+            # do not set `max_seq_length=max_returned_token` because memory is not a concern here
+            self.model.set_kv_cache(batch_size=1)
         out = generate(
             self.model, context[0], max_length, temperature=self.temperature, top_k=None, eos_id=eos_token_id
         )
 
-        return self.tokenizer.decode(out)
+        #return self.tokenizer.decode(out)
+        self.model.clear_kv_cache()
+        # print("_model_generate output")
+        # print(out)
+        # print(out.shape)
+        out = out.unsqueeze(0)
+        # print(out.shape)
+        # op = self.tokenizer.decode(out)
+        # print(op)
+        return out
 
     @torch.inference_mode()
     def run_eval(
